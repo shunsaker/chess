@@ -3,7 +3,9 @@ package chess;
 public class Main {
 
 	public static void main(String[] args) {
-		// TODO Auto-generated method stub
+		if(args != null && args.length > 0) {
+			Setup.driver(args[0]);
+		}
 
 	}
 
