@@ -5,37 +5,39 @@ import java.io.FileReader;
 import java.io.IOException;
 import java.util.HashMap;
 import java.util.Map;
-import java.util.Scanner;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 
 public class Setup {
 	// board must be 8 x 8 for this regex to work
-	private static final String pattern = "(?i)([bkqnrp][ld][a-h][1-8])|([a-h][1-8] [a-h][1-8]\\*?( [a-h][1-8] [a-h][1-8])?)";
-	public static final Scanner SCAN = new Scanner(System.in);
-	private static final Map<Character, String> PIECE_MAP = new HashMap<Character, String>();
+	private static Pattern movePattern = Pattern.compile("(?i)(?<place>(?<piece>[bkqnrp])(?<color>[ld])(?<placeLocation>([a-h][1-8])))|(?<move>((?<moveLocation1>[a-h][1-8]) (?<moveLocation2>[a-h][1-8])(?<capture>\\*?)(?<move2> (<moveLocation3>[a-h][1-8]) (<moveLocation4>[a-h][1-8]))?))");
+	private static final Map<String, String> PIECE_MAP = new HashMap<String, String>();
+	
 	static {
-		PIECE_MAP.put('r', "Rook");
-		PIECE_MAP.put('n', "Knight");
-		PIECE_MAP.put('q', "Queen");
-		PIECE_MAP.put('b', "Bishop");
-		PIECE_MAP.put('p', "Pawn");
-		PIECE_MAP.put('k', "King");
+		PIECE_MAP.put("r", "Rook");
+		PIECE_MAP.put("n", "Knight");
+		PIECE_MAP.put("q", "Queen");
+		PIECE_MAP.put("b", "Bishop");
+		PIECE_MAP.put("p", "Pawn");
+		PIECE_MAP.put("k", "King");
 	}
 	
 	public static void parseLine(String line) {
-		if(line != null && line.matches(pattern)) {
+		Matcher m = movePattern.matcher(line);
+		String plainEnglish = "invalid: " + line;
+		if(m.matches()) {
 			line = line.toLowerCase();
-			if(line.length() == 4) {	
-				String color = (line.substring(1,2).equalsIgnoreCase("l")) ? "White" : "Black";
-				System.out.println("Place " + color + " " + PIECE_MAP.get(line.charAt(0)) + " at " + line.substring(2, 4));
+			if(m.group("place") != null) {	
+				String color = (m.group("color").equalsIgnoreCase("l")) ? "White" : "Black";
+				plainEnglish = "Place " + color + " " + PIECE_MAP.get(m.group("piece")) + " at " + m.group("placeLocation");
 			}
-			else {
-				System.out.print("Move whatever is at " + line.substring(0, 2) + " to " + line.substring(3,5));
-				System.out.print((line.length() == 6) ? " and capture the piece there" : "");
-				System.out.println((line.length() == 11) ? " and move whatever is at " + line.substring(6, 8) + " to " + line.substring(9, 11) : "");
+			else { // m.group("move") != null
+				plainEnglish = "Move whatever is at " + m.group("moveLocation1") + " to " + m.group("moveLocation2");
+				plainEnglish += (m.group("capture").equals("*")) ? " and capture the piece there" : "";
+				plainEnglish += (m.group("move2") != null) ? " and move whatever is at " + m.group("moveLocation3") + " to " + m.group("moveLocation4") : "";
 			}
 		}
-		else 
-			System.out.println("invalid: " + line);
+		System.out.println(plainEnglish);
 	}
 	
 	public static void driver(String fileAddress) {
@@ -43,7 +45,8 @@ public class Setup {
 			String line =  null; 
 			do {
 				line = br.readLine();
-				parseLine(line);
+				if(line != null)
+					parseLine(line);
 			}
 			while (line != null);
 		}
