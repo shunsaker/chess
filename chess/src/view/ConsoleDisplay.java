@@ -1,4 +1,4 @@
-package chess;
+package view;
 
 import model.Board;
 import model.Pieces.Piece;
@@ -20,5 +20,6 @@ public class ConsoleDisplay implements Display{
 			System.out.print(p.toChar() + " ");
 			i++;
 		}
+		System.out.println("\n");
 	}
 }

@@ -1,16 +1,17 @@
 package model.Pieces;
 
+import chess.MoveType;
 import model.Color;
 
 public class Knight extends Piece{
 
 	public Knight(Color color) {
-		super(color, "knight");
+		super(color, "knight", MoveType.singleLShape);
 	}
 	
 	@Override
 	public char toChar() {
-		return 'n';
+		return super.getColor() == Color.black ? 'N' :'n';
 	}
 
 }

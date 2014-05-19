@@ -3,32 +3,52 @@ package chess;
 import model.Board;
 
 public class Location {
-	private final int row, col;
-	private final String locString;
+	private final int ROW, COL;
+	private final String LOC_STRING;
 	
 	public Location(String locString) {
-		this.locString = locString;
-		row = Board.SIZE - (locString.charAt(1) - '0');
-		col = locString.charAt(0) - 'a';
+		LOC_STRING = locString;
+		ROW = Board.SIZE - (locString.charAt(1) - '0');
+		COL = locString.charAt(0) - 'a';
 		
 	}
 	
+	public Location(Location origin, RelativeLocation offset) {
+		this(origin.getRow() + offset.getRow(), origin.getCol() + offset.getCol());
+	}
+	
 	public Location(int row, int col) {
-		this.row = row;
-		this.col = col;
-		locString = ('A' + row) + "" + ('0' + col);
+		ROW = row;
+		COL = col;
+		LOC_STRING = ('A' + (Board.SIZE - COL)) + "" + ('0' + (Board.SIZE - ROW));
+	}
+	
+	public boolean isOnBoard() {
+		boolean rowOnBoard = 0 <= ROW && ROW < Board.SIZE;
+		boolean colOnBoard = 0 <= COL && COL < Board.SIZE;
+		return  rowOnBoard && colOnBoard;
 	}
 	
 	public int getRow() {
-		return row;
+		return ROW;
 	}
 	
 	public int getCol() {
-		return col;
+		return COL;
 	}
 	
 	@Override
 	public String toString() {
-		return locString;
+		return LOC_STRING;
+	}
+	
+	@Override
+	public boolean equals(Object o) {
+		boolean equals = false;
+		if(o instanceof Location) {
+			Location other = (Location) o;
+			equals = ROW == other.getRow() && COL == other.getCol();
+		}
+		return equals;
 	}
 }

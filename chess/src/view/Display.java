@@ -1,4 +1,4 @@
-package chess;
+package view;
 
 import model.Board;
 
