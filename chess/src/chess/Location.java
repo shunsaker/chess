@@ -20,7 +20,7 @@ public class Location {
 	public Location(int row, int col) {
 		ROW = row;
 		COL = col;
-		LOC_STRING = ('A' + (Board.SIZE - COL)) + "" + ('0' + (Board.SIZE - ROW));
+		LOC_STRING = (char)('a' + COL) + "" + (char)('0' + (Board.SIZE - ROW));
 	}
 	
 	public boolean isOnBoard() {
