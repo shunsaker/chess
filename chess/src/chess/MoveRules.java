@@ -29,8 +29,8 @@ public class MoveRules {
 		return REQUIRES_CLEAR_PATH;
 	}
 	
-	public RelativeLocation[] getAllOffsets(int maxTimes) {
-		RelativeLocation[] offsets = flipRowCol();
+	public Set<RelativeLocation> getAllOffsets(int maxTimes) {
+		Set<RelativeLocation> offsets = flipRowCol();
 		
 		if(ALL_DIRECTIONS) {
 			offsets = allDirections(offsets);
@@ -41,7 +41,7 @@ public class MoveRules {
 		}
 		
 		if(COMPOUND != null) {
-			offsets = compound(offsets, maxTimes);
+			addCompound(offsets, maxTimes);
 		}
 		
 		return offsets;
@@ -51,11 +51,11 @@ public class MoveRules {
 	 * If FLIP_ROW_COL:
 	 *    Allows the row and column to be reversed for example (1, 2) and also (2, 1)
 	 */
-	private RelativeLocation[] flipRowCol() {
-		RelativeLocation[] offsets = FLIP_ROW_COL ? new RelativeLocation[2] : new RelativeLocation[1];
-		offsets[0] = new RelativeLocation(ROWS, COLS);
+	private Set<RelativeLocation> flipRowCol() {
+		Set<RelativeLocation> offsets = new LinkedHashSet<RelativeLocation>();
+		offsets.add(new RelativeLocation(ROWS, COLS));
 		if(FLIP_ROW_COL) {
-			offsets[1] = new RelativeLocation(COLS, ROWS);
+			offsets.add(new RelativeLocation(COLS, ROWS));
 		}
 		return offsets;
 	}
@@ -64,10 +64,10 @@ public class MoveRules {
 	 * Applies all directions to the current offsets
 	 * all combinations of negative and positive [(-,-)(-,+)(+,-)(++)]
 	 */
-	private RelativeLocation[] allDirections(RelativeLocation[] offsets) {
+	private Set<RelativeLocation> allDirections(Set<RelativeLocation> offsets) {
 		// Applies all directions to the current offsets
 		// all combinations of negative and positive [(-,-)(-,+)(+,-)(++)]
-		Set<RelativeLocation> s = new LinkedHashSet<RelativeLocation>(); // removes duplicates
+		Set<RelativeLocation> s = new LinkedHashSet<RelativeLocation>(); 
 		for(RelativeLocation o : offsets) {
 			for(int i = -1; i <= 1; i+=2) {
 				for(int j = -1; j <= 1; j+=2) {
@@ -75,7 +75,7 @@ public class MoveRules {
 				}
 			}
 		}
-		return s.toArray(new RelativeLocation[0]);
+		return s;
 	}
 	
 	/**
@@ -85,27 +85,24 @@ public class MoveRules {
 	 * after the scalar is applied this would be:
 	 *    [(1,1)(2,2)(3,3)(4,4)(5,5)(6,6)(7,7)]
 	 */
-	private RelativeLocation[] multiMove(RelativeLocation[] offsets, int maxTimes) {
+	private Set<RelativeLocation> multiMove(Set<RelativeLocation> offsets, int maxTimes) {
 		 
-		Set<RelativeLocation> s = new LinkedHashSet<RelativeLocation>(); // removes duplicates
+		Set<RelativeLocation> s = new LinkedHashSet<RelativeLocation>();
 		for(RelativeLocation o : offsets) {
 			for(int mult = 1; mult < maxTimes; mult++) {
 				s.add(new RelativeLocation(o.getRow() * mult, o.getCol() * mult));
 			}
 		}
-		return s.toArray(new RelativeLocation[0]);
+		return s;
 	}
 	
 	/**
 	 * Recursively calls getAllOffsets for the sub/compound move
-	 * And then adds the two arrays together and returns the total
+	 * And then adds the two sets together
 	 */
-	private RelativeLocation[] compound(RelativeLocation[] offsets, int maxTimes) {
-		RelativeLocation[] comp = COMPOUND.getAllOffsets(maxTimes);
-		RelativeLocation[] temp = new RelativeLocation[comp.length + offsets.length];
-		System.arraycopy(offsets, 0, temp, 0, offsets.length);
-		System.arraycopy(comp, 0, temp, offsets.length, offsets.length);
-		return temp;
+	private void addCompound(Set<RelativeLocation> offsets, int maxTimes) {
+		Set<RelativeLocation> comp = COMPOUND.getAllOffsets(maxTimes);
+		offsets.addAll(comp);
 	}
 
 }

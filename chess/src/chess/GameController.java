@@ -3,6 +3,7 @@ package chess;
 import java.io.File;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Set;
 
 import view.ConsoleDisplay;
 import view.Display;
@@ -21,7 +22,7 @@ public class GameController {
 	private List<Command> moves = new ArrayList<Command>();
 	private Color currentTurn = Color.white;
 	
-	public GameController(File commandFile) {
+	public GameController(File commandFile, boolean setup) {
 		BufferedFileReader reader = new BufferedFileReader(commandFile);
 		while(reader.hasNext()) {
 			Command c = InputParser.parseLine(reader.next());
@@ -30,7 +31,9 @@ public class GameController {
 			}
 		}
 		reader.close();
-		setupBoard();
+		if(setup) {
+			setupBoard();
+		}
 	}
 	
 	private void setupBoard() {
@@ -47,9 +50,16 @@ public class GameController {
 	public void driver() {
 		System.out.println();
 		for(Command c : moves) {
-			System.out.println(c);
+			//System.out.println(c);
 			executeCommand(c);
-			display.displayBoard(board);
+			//display.displayBoard(board);
+		}
+		
+		if(isInCheck(Color.white)) {
+			System.out.println("White king in check");
+		}
+		else if(isInCheck(Color.black)){ 
+			System.out.println("Black King in check");
 		}
 	}
 	
@@ -70,18 +80,27 @@ public class GameController {
 	}
 	
 	private boolean isMoveValid(MoveCMD move) {
+		return isMoveValid(move, true);
+	}
+	
+	private boolean isMoveValidNoPrint(MoveCMD move) {
+		return isMoveValid(move, false);
+	}
+	
+	private boolean isMoveValid(MoveCMD move, boolean print) {
 		Piece toMove = board.pieceAt(move.getFrom());
 		Piece toCapture = board.pieceAt(move.getTo());
 		boolean valid = false;
+		String errorMessage = null;
 
 		if(toMove == Board.EMPTY) {
-			System.out.println("No piece selected");
+			errorMessage = "No piece selected";
 		}
 		else if(toMove.getColor() != currentTurn) {
-			System.out.println("Out of turn play");
+			errorMessage = "Out of turn play";
 		}
 		else if(toCapture.getColor() == toMove.getColor()) {
-			System.out.println("Space Occupided");
+			errorMessage = "Space Occupided";
 		}
 		else {
 			boolean capture = move instanceof Capture || toCapture != Board.EMPTY;
@@ -89,21 +108,35 @@ public class GameController {
 			valid = isMoveLegal(move, rule);
 			
 			if(!valid) {
-				System.out.println("Illegal Move");
+				errorMessage = "Illegal Move";
 			}
+		}
+		if(errorMessage != null && print) {
+			System.out.println(errorMessage);
 		}
 		return valid;
 	}
-	
+
 	private boolean isMoveLegal(MoveCMD move, MoveRules rule) {
-		RelativeLocation[] relativeMoves = rule.getAllOffsets(Board.SIZE);
-		
-		List<Location> possibleMoves = relativeToActualLocations(move.getFrom(), relativeMoves);
+		List<Location> possibleMoves = getLocationsFromRule(rule, move.getFrom());
 		if(rule.requiresClearPath()) {
 			possibleMoves = removeBlockedMoves(move.getFrom(), possibleMoves);
 		}
 		return possibleMoves.contains(move.getTo());
 
+	}
+	
+	private boolean isInCheck(Color kingColor) {
+		boolean check = false;
+		Location kingLoc = board.getKingLocation(kingColor);
+		List<Location> dangerLocations = getLocationsFromRule(MoveType.allMove.getRule(), kingLoc);
+		for(int i = 0; i < dangerLocations.size(); i++) {
+			MoveCMD move = new MoveCMD(dangerLocations.get(i), kingLoc);
+			if(isMoveValidNoPrint(move)) {
+				check = true;
+			}
+		}
+		return check;
 	}
 
 	private List<Location> removeBlockedMoves(Location from, List<Location> possibleMoves) {
@@ -115,8 +148,13 @@ public class GameController {
 		}
 		return moves;
 	}
+	
+	private List<Location> getLocationsFromRule(MoveRules rule, Location loc) {
+		Set<RelativeLocation> relativeMoves = rule.getAllOffsets(Board.SIZE);
+		return relativeToActualLocations(loc, relativeMoves);
+	}
 
-	private List<Location> relativeToActualLocations(Location loc, RelativeLocation[] rels) {
+	private List<Location> relativeToActualLocations(Location loc, Set<RelativeLocation> rels) {
 		List<Location> locations = new ArrayList<Location>();
 		for(RelativeLocation rel : rels) {
 			Location l = new Location(loc, rel);
@@ -132,7 +170,7 @@ public class GameController {
 //		System.out.println("\n");
 //		for(MoveType mt : MoveType.values()) {
 //			System.out.print(mt + " ");
-//			RelativeLocation[] offsets = mt.getRule().getAllOffsets(Board.SIZE);
+//			Set<RelativeLocation> offsets = mt.getRule().getAllOffsets(Board.SIZE);
 //			for(RelativeLocation o : offsets) {
 //				System.out.print(o + " ");
 //			}

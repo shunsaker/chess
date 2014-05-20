@@ -9,19 +9,20 @@ public enum MoveType {
 	singleLShape(2, 1, true, true, false, false),
 	manyDiagonal(1, 1, true, false, true, true),
 	manyStright(1, 0, true, true, true, true),
-	manyAny(manyDiagonal.getRule(), manyStright.getRule()),
+	manyAny(manyDiagonal, manyStright),
 	
 		singleDiagonal(1, 1, true, false, false, false),
 		singleStraight(1, 0, true, true, false, false),
-	singleAny(singleStraight.getRule(), singleDiagonal.getRule()),
+	singleAny(singleStraight, singleDiagonal),
 	
 		singleDiagonalUpLeft(-1, -1, false, false, false, false),
 		singleDiagonalUpRight(-1, 1, false, false, false, false),
-	singleDiagonalUp(singleDiagonalUpLeft.getRule(), singleDiagonalUpRight.getRule()),
+	singleDiagonalUp(singleDiagonalUpLeft, singleDiagonalUpRight),
 	
 		singleDiagonalDownLeft(1, -1, false, false, false, false),
 		singleDiagonalDownRight(1, 1, false, false, false, false),
-	singleDiagonalDown(singleDiagonalDownLeft.getRule(), singleDiagonalDownRight.getRule());	
+	singleDiagonalDown(singleDiagonalDownLeft, singleDiagonalDownRight),
+	allMove(manyAny, singleLShape);	
 	
 	private final MoveRules RULE;
 	
@@ -33,8 +34,8 @@ public enum MoveType {
 		RULE = new MoveRules(rows, cols, allDirections, flipRowCol, multiMove, needsClearPath, compound);
 	}
 	
-	MoveType(MoveRules rule, MoveRules compound) {
-		RULE = new MoveRules(rule, compound);
+	MoveType(MoveType rule, MoveType compound) {
+		RULE = new MoveRules(rule.getRule(), compound.getRule());
 	}
 	
 	public MoveRules getRule() {

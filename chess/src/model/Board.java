@@ -3,6 +3,7 @@ package model;
 import java.util.Iterator;
 
 import model.Pieces.EmptyPiece;
+import model.Pieces.King;
 import model.Pieces.Piece;
 import chess.Location;
 import chess.RelativeLocation;
@@ -56,6 +57,19 @@ public class Board implements Iterable<Piece>{
 		}
 		
 		return clear;
+	}
+	
+	public Location getKingLocation(Color color) {
+		Location king = null;
+		for(int row = 0; row < SIZE; row++) {
+			for(int col = 0; col < SIZE; col++) {
+				Piece piece = board[row][col];
+				if(piece.getColor() == color && piece instanceof King) {
+					king = new Location(row, col);
+				}
+			}
+		}
+		return king;
 	}
 	
 	private RelativeLocation getIncrementer(Location from, Location to) {
