@@ -11,7 +11,7 @@ public class Knight extends Piece{
 	
 	@Override
 	public char toChar() {
-		return super.getColor() == Color.black ? 'N' :'n';
+		return super.getColor() == Color.white ? 'N' :'n';
 	}
 
 }

@@ -3,10 +3,13 @@ package chess;
 import java.util.LinkedHashSet;
 import java.util.Set;
 
+import model.Board;
+
 public class MoveRules {
 	private final int ROWS, COLS;
 	private final boolean ALL_DIRECTIONS, FLIP_ROW_COL, MULTIMOVE, REQUIRES_CLEAR_PATH;
 	private final MoveRules COMPOUND;
+	private final Set<RelativeLocation> OFFSETS;
 	
 	public MoveRules(MoveRules move, MoveRules compound) {
 		this(move.ROWS, move.COLS, move.ALL_DIRECTIONS, move.FLIP_ROW_COL, move.MULTIMOVE, move.REQUIRES_CLEAR_PATH, compound);
@@ -20,6 +23,7 @@ public class MoveRules {
 		MULTIMOVE = multiMove;
 		REQUIRES_CLEAR_PATH = needsClearPath;
 		COMPOUND = compound;
+		OFFSETS = setUpOffsets();
 	}
 	
 	/**
@@ -29,7 +33,7 @@ public class MoveRules {
 		return REQUIRES_CLEAR_PATH;
 	}
 	
-	public Set<RelativeLocation> getAllOffsets(int maxTimes) {
+	private Set<RelativeLocation> setUpOffsets() {
 		Set<RelativeLocation> offsets = flipRowCol();
 		
 		if(ALL_DIRECTIONS) {
@@ -37,14 +41,18 @@ public class MoveRules {
 		}
 		
 		if(MULTIMOVE) {
-			offsets = multiMove(offsets, maxTimes);
+			offsets = multiMove(offsets);
 		}
 		
 		if(COMPOUND != null) {
-			addCompound(offsets, maxTimes);
+			addCompound(offsets);
 		}
 		
 		return offsets;
+	}
+	
+	public Set<RelativeLocation> getAllOffsets() {
+		return OFFSETS;
 	}
 	
 	/**
@@ -85,11 +93,11 @@ public class MoveRules {
 	 * after the scalar is applied this would be:
 	 *    [(1,1)(2,2)(3,3)(4,4)(5,5)(6,6)(7,7)]
 	 */
-	private Set<RelativeLocation> multiMove(Set<RelativeLocation> offsets, int maxTimes) {
+	private Set<RelativeLocation> multiMove(Set<RelativeLocation> offsets) {
 		 
 		Set<RelativeLocation> s = new LinkedHashSet<RelativeLocation>();
 		for(RelativeLocation o : offsets) {
-			for(int mult = 1; mult < maxTimes; mult++) {
+			for(int mult = 1; mult < Board.SIZE; mult++) {
 				s.add(new RelativeLocation(o.getRow() * mult, o.getCol() * mult));
 			}
 		}
@@ -100,8 +108,8 @@ public class MoveRules {
 	 * Recursively calls getAllOffsets for the sub/compound move
 	 * And then adds the two sets together
 	 */
-	private void addCompound(Set<RelativeLocation> offsets, int maxTimes) {
-		Set<RelativeLocation> comp = COMPOUND.getAllOffsets(maxTimes);
+	private void addCompound(Set<RelativeLocation> offsets) {
+		Set<RelativeLocation> comp = COMPOUND.getAllOffsets();
 		offsets.addAll(comp);
 	}
 

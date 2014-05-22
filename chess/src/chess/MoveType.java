@@ -22,7 +22,7 @@ public enum MoveType {
 		singleDiagonalDownLeft(1, -1, false, false, false, false),
 		singleDiagonalDownRight(1, 1, false, false, false, false),
 	singleDiagonalDown(singleDiagonalDownLeft, singleDiagonalDownRight),
-	allMove(manyAny, singleLShape);	
+	allMove(singleLShape, manyAny);	
 	
 	private final MoveRules RULE;
 	

@@ -6,7 +6,7 @@ public class Main {
 
 	public static void main(String[] args) {
 		if(args != null && args.length > 0) {
-			GameController controller = new GameController(new File(args[0]), false);
+			GameController controller = new GameController(new File(args[0]));
 			controller.driver();
 		}
 		else {

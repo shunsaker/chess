@@ -1,28 +1,37 @@
 package chess;
 
 import java.io.File;
+import java.util.ArrayDeque;
 import java.util.ArrayList;
+import java.util.Deque;
 import java.util.List;
 import java.util.Set;
 
+import model.Board;
+import model.Color;
+import model.Pieces.King;
+import model.Pieces.Pawn;
+import model.Pieces.Piece;
+import model.Pieces.Rook;
 import view.ConsoleDisplay;
 import view.Display;
 import view.GuiDisplay;
-import commands.*;
+
+import commands.Capture;
+import commands.Command;
+import commands.MoveCMD;
+import commands.Place;
+
 import fileIO.BufferedFileReader;
-import model.Board;
-import model.Color;
-import model.Pieces.Pawn;
-import model.Pieces.Piece;
 
 public class GameController {
 	private static final boolean GUI_DISPLAY = false;
 	private Display display = GUI_DISPLAY ? new GuiDisplay() : new ConsoleDisplay();
 	private Board board = new Board();
-	private List<Command> moves = new ArrayList<Command>();
+	private Deque<Command> moves = new ArrayDeque<Command>();
 	private Color currentTurn = Color.white;
 	
-	public GameController(File commandFile, boolean setup) {
+	public GameController(File commandFile) {
 		BufferedFileReader reader = new BufferedFileReader(commandFile);
 		while(reader.hasNext()) {
 			Command c = InputParser.parseLine(reader.next());
@@ -31,9 +40,6 @@ public class GameController {
 			}
 		}
 		reader.close();
-		if(setup) {
-			setupBoard();
-		}
 	}
 	
 	private void setupBoard() {
@@ -47,99 +53,279 @@ public class GameController {
 		}	
 	}
 	
-	public void driver() {
-		System.out.println();
-		for(Command c : moves) {
-			//System.out.println(c);
-			executeCommand(c);
-			//display.displayBoard(board);
+	public void doPlaceMoves() {
+		boolean placed = false;
+		Command c = null;
+		do {
+			c = moves.poll();
+			if(c instanceof Place) {
+				Place place = (Place) c;
+				board.place(place.getPiece(), place.getLocation());
+				System.out.println(c);
+				placed = true;
+			}
 		}
+		while(c != null && c instanceof Place);
 		
-		if(isInCheck(Color.white)) {
-			System.out.println("White king in check");
+		if(!placed) {
+			setupBoard();
 		}
-		else if(isInCheck(Color.black)){ 
-			System.out.println("Black King in check");
+		if(c != null) {
+			moves.addFirst(c);
 		}
 	}
 	
+	public void driver() {
+		doPlaceMoves();
+		
+		boolean running = true;
+		Command c = null;
+		do {
+			display.displayBoard(board);
+			c = moves.poll();
+			if(c instanceof MoveCMD && ((MoveCMD) c).getFrom().toString().equalsIgnoreCase("H8") && ((MoveCMD) c).getTo().toString().equalsIgnoreCase("A8")) {
+				System.out.println("Debug");
+			}
+			
+			updateAllPieceMoves();
+			running = takeTurn(c);
+		}
+		while(c != null && running);
+		
+		if(!running) {
+			display.displayBoard(board);
+		}
+	}
+	
+	public boolean takeTurn(Command c) {
+		boolean running = playerCanMove(currentTurn);
+		if(running) {
+			if(isInCheck(currentTurn)) {
+				System.out.println("Check!");
+			}
+			executeCommand(c);
+		}
+		else {
+			endGame();
+		}
+		return running;
+	}
+	
+	public void endGame() {
+		if(isInCheck(currentTurn)) {
+			System.out.println("Checkmate! " + (currentTurn == Color.black ? Color.white : Color.black) +  " wins!");
+		}
+		else {
+			System.out.println("Stalemate");
+		}
+	}
+
 	public void executeCommand(Command c) {
+		if(c != null) System.out.println(c);
 		if(c instanceof Place) {
 			Place place = (Place) c;
 			board.place(place.getPiece(), place.getLocation());
 		}
 		else if(c instanceof MoveCMD) {
 			MoveCMD move = (MoveCMD) c;
-			
-			if(isMoveValid(move)){
-				board.move(move.getFrom(), move.getTo());
+			if(move.getFrom().toString().equalsIgnoreCase("e1") && move.getTo().toString().equalsIgnoreCase("c1")) {
+				System.out.println("debug");
+			}
+			Piece p = board.pieceAt(move.getFrom());
+			if(validateMove(move) && 
+					p.getValidMoves().contains(move.getTo())) {
+				executeSpecialMove(p, move);
+				board.capture(move.getFrom(), move.getTo());
 				board.pieceAt(move.getTo()).moved();
 				currentTurn = (currentTurn == Color.white) ? Color.black : Color.white;
+			}
+			else {
+				System.err.println("Invalid Move!");
 			}
 		}
 	}
 	
-	private boolean isMoveValid(MoveCMD move) {
-		return isMoveValid(move, true);
+	private boolean playerCanMove(Color color) {
+		boolean canMove = false;
+		List<Piece> pieces = board.getPieces(color);
+		for(int i = 0; i < pieces.size() && !canMove; i++) {
+			if(pieces.get(i).getValidMoves().size() > 0) {
+				canMove = true;
+			}
+		}
+		return canMove;
+	}
+
+	private void updateAllPieceMoves() {
+		List<Location> pieceLocs = board.getLocations(currentTurn);
+		for(Location loc : pieceLocs) {
+			Piece p = board.pieceAt(loc);
+			updatePieceMoves(p, loc);
+		}
 	}
 	
-	private boolean isMoveValidNoPrint(MoveCMD move) {
-		return isMoveValid(move, false);
+	private void updatePieceMoves(Piece p, Location pieceLoc) {
+		MoveRules rule = p.getMoveRule();
+		List<Location> possibleMoves = getLocationsFromRule(rule, pieceLoc);
+		
+		if(rule.requiresClearPath()) {
+			possibleMoves = removeBlockedMoves(pieceLoc, possibleMoves);
+		}
+		
+		possibleMoves.addAll(validateSpecialMoves(p, pieceLoc));
+		
+		if(p instanceof Pawn) {
+			possibleMoves = getValidPawnMoves((Pawn) p, pieceLoc);
+		}
+		possibleMoves = removeSameColorConflics(p, possibleMoves);
+		possibleMoves = removeCheckMoves(pieceLoc, p.getColor(), possibleMoves);
+		p.setValidMoves(possibleMoves);
 	}
 	
-	private boolean isMoveValid(MoveCMD move, boolean print) {
+	private List<Location> getValidPawnMoves(Pawn p, Location pieceLoc) {
+		List<Location> pawnMoves = new ArrayList<Location>();
+		for(int i = 0; i < 2; i++) {
+			MoveRules rule = i == 0 ? p.getCaptureRule() : p.getMoveRule();
+			List<Location> potentialCaptures = getLocationsFromRule(rule, pieceLoc);
+			for(Location toLoc : potentialCaptures) {
+				MoveCMD move = new MoveCMD(pieceLoc, toLoc);
+				if(validateMoveNoPrint(move, board) && isMoveLegal(move)) {
+					pawnMoves.add(toLoc);
+				}
+			}
+		}
+		return pawnMoves;
+	}
+
+	private List<Location> validateSpecialMoves(Piece p, Location pieceLoc) {
+		List<Location> specialMoves = new ArrayList<Location>();
+		if(p instanceof King) {
+			specialMoves = castleValidation((King) p, pieceLoc);
+		}
+		return specialMoves;
+	}
+	
+
+	private List<Location> castleValidation(King king, Location kingLoc) {
+		List<Location> castleMoves = new ArrayList<Location>(); 
+		if(!king.hasMoved() && !isInCheck(king.getColor())) {
+			List<Location> locations = board.getLocations(king.getColor());
+			for(Location loc : locations) {
+				Piece p = board.pieceAt(loc);
+				if(p instanceof Rook && !p.hasMoved() && board.isPathClear(kingLoc, loc)) {
+					int rowDiff = 0;
+					int colDiff = loc.getCol() - kingLoc.getCol();
+					RelativeLocation towardsRook = new RelativeLocation(rowDiff,								
+							colDiff == 0 ? colDiff : colDiff / Math.abs(colDiff)); 
+					Location skippedSpot = new Location(kingLoc, towardsRook);
+					Board testBoard = board.getCopy();
+					testBoard.move(kingLoc, skippedSpot);
+					if(!isInCheck(king.getColor(), testBoard)) {
+						castleMoves.add(new Location(skippedSpot, towardsRook));
+					}
+				}
+			}
+		}
+		return castleMoves;
+	}		
+	
+
+	private void executeSpecialMove(Piece p, MoveCMD m) {
+		if(p instanceof King) { //castling
+			int rowDiff = m.getTo().getRow() - m.getFrom().getRow();
+			int colDiff = m.getTo().getCol() - m.getFrom().getCol();
+			if(rowDiff == 0 && Math.abs(colDiff) == 2) {
+				int shortDist = 3;
+				int longDist = 4;
+				RelativeLocation offset = new RelativeLocation(rowDiff, 
+						colDiff/Math.abs(colDiff));
+				Location shortCastle = new Location(m.getFrom(), 
+						new RelativeLocation(offset.getRow(), offset.getCol() * shortDist));
+				Location longCastle = new Location(m.getFrom(), 
+						new RelativeLocation(offset.getRow(), offset.getCol() * longDist));
+				Location rookLocation = board.pieceAt(shortCastle) instanceof Rook ? shortCastle : longCastle;
+				board.move(rookLocation, new Location(m.getFrom(), offset));
+			}
+		}
+		
+	}
+
+	private boolean validateMoveNoPrint(MoveCMD move, Board copy) {
+		return validateMove(move, false, copy);
+	}
+	
+
+	private boolean validateMove(MoveCMD move) {
+		return validateMove(move, true, board);
+	}
+	
+
+	private boolean validateMove(MoveCMD move, boolean print, Board board) {
 		Piece toMove = board.pieceAt(move.getFrom());
 		Piece toCapture = board.pieceAt(move.getTo());
-		boolean valid = false;
 		String errorMessage = null;
-
+		
 		if(toMove == Board.EMPTY) {
 			errorMessage = "No piece selected";
 		}
-		else if(toMove.getColor() != currentTurn) {
+		else if(toMove.getColor() != currentTurn && print) {
 			errorMessage = "Out of turn play";
 		}
 		else if(toCapture.getColor() == toMove.getColor()) {
 			errorMessage = "Space Occupided";
 		}
-		else {
-			boolean capture = move instanceof Capture || toCapture != Board.EMPTY;
-			MoveRules rule = (toMove instanceof Pawn && capture) ? ((Pawn)toMove).getCaptureRule() : toMove.getMoveRule();
-			valid = isMoveLegal(move, rule);
-			
-			if(!valid) {
-				errorMessage = "Illegal Move";
-			}
-		}
 		if(errorMessage != null && print) {
-			System.out.println(errorMessage);
+			System.err.println(errorMessage);
 		}
-		return valid;
+		
+		return errorMessage == null;
 	}
 
-	private boolean isMoveLegal(MoveCMD move, MoveRules rule) {
+	private boolean isMoveLegal(MoveCMD move) {
+		return isMoveLegal(move, board);
+	}
+
+
+	private boolean isMoveLegal(MoveCMD move, Board board) {
+		Piece toMove = board.pieceAt(move.getFrom());
+		Piece toCapture = board.pieceAt(move.getTo());
+		boolean capture = move instanceof Capture || toCapture != Board.EMPTY;
+		MoveRules rule = (toMove instanceof Pawn && capture) ? ((Pawn)toMove).getCaptureRule() : toMove.getMoveRule();
 		List<Location> possibleMoves = getLocationsFromRule(rule, move.getFrom());
 		if(rule.requiresClearPath()) {
-			possibleMoves = removeBlockedMoves(move.getFrom(), possibleMoves);
-		}
+			possibleMoves = removeBlockedMoves(move.getFrom(), possibleMoves, board);
+		} 
 		return possibleMoves.contains(move.getTo());
 
 	}
 	
+
 	private boolean isInCheck(Color kingColor) {
+		return isInCheck(kingColor, this.board);
+	}
+	
+
+	private boolean isInCheck(Color kingColor, Board board) {
 		boolean check = false;
 		Location kingLoc = board.getKingLocation(kingColor);
-		List<Location> dangerLocations = getLocationsFromRule(MoveType.allMove.getRule(), kingLoc);
-		for(int i = 0; i < dangerLocations.size(); i++) {
-			MoveCMD move = new MoveCMD(dangerLocations.get(i), kingLoc);
-			if(isMoveValidNoPrint(move)) {
-				check = true;
+		if(kingLoc != null) {
+			List<Location> dangerZone = getLocationsFromRule(MoveType.allMove.getRule(), kingLoc);
+			for(int i = 0; i < dangerZone.size() && !check; i++) {
+				MoveCMD move = new MoveCMD(dangerZone.get(i), kingLoc);
+				if(validateMoveNoPrint(move, board) && isMoveLegal(move, board)) {
+					check = true;
+				}
 			}
 		}
 		return check;
 	}
-
+	
 	private List<Location> removeBlockedMoves(Location from, List<Location> possibleMoves) {
+		return removeBlockedMoves(from, possibleMoves, board);
+	}
+
+
+	private List<Location> removeBlockedMoves(Location from, List<Location> possibleMoves, Board board) {
 		List<Location> moves = new ArrayList<Location>();
 		for(Location to : possibleMoves) {
 			if(board.isPathClear(from, to)) {
@@ -149,10 +335,37 @@ public class GameController {
 		return moves;
 	}
 	
+
+	private List<Location> removeSameColorConflics(Piece p, List<Location> possibleMoves) {
+		List<Location> moves = new ArrayList<Location>();
+		for(Location to : possibleMoves) {
+			Piece test = board.pieceAt(to);
+			if(p.getColor() != test.getColor()) {
+				moves.add(to);
+			}
+		}
+		return moves;
+	}
+	
+
+	private List<Location> removeCheckMoves(Location pieceLoc, Color color, List<Location> possibleMoves) {
+		List<Location> validMoves = new ArrayList<Location>();
+		for(Location toLocation : possibleMoves) {
+			Board copy = board.getCopy();
+			copy.capture(pieceLoc, toLocation);
+			if(!isInCheck(color, copy)) {
+				validMoves.add(toLocation);
+			}
+		}
+		return validMoves;
+	}
+	
+
 	private List<Location> getLocationsFromRule(MoveRules rule, Location loc) {
-		Set<RelativeLocation> relativeMoves = rule.getAllOffsets(Board.SIZE);
+		Set<RelativeLocation> relativeMoves = rule.getAllOffsets();
 		return relativeToActualLocations(loc, relativeMoves);
 	}
+
 
 	private List<Location> relativeToActualLocations(Location loc, Set<RelativeLocation> rels) {
 		List<Location> locations = new ArrayList<Location>();
@@ -166,15 +379,4 @@ public class GameController {
 		return locations;
 	}
 	
-//	private void printAllMoveTypes() {
-//		System.out.println("\n");
-//		for(MoveType mt : MoveType.values()) {
-//			System.out.print(mt + " ");
-//			Set<RelativeLocation> offsets = mt.getRule().getAllOffsets(Board.SIZE);
-//			for(RelativeLocation o : offsets) {
-//				System.out.print(o + " ");
-//			}
-//			System.out.println();
-//		}
-//	}
 }

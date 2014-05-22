@@ -3,10 +3,10 @@ package model;
 import java.util.HashMap;
 import java.util.Map;
 
-import model.Pieces.Piece;
-import model.factories.*;
+import model.Pieces.*;
 
 public class PieceMap {
+	
 	private static final Map<String, String> PIECE_NAME_MAP = new HashMap<String, String>();
 	static {
 		PIECE_NAME_MAP.put("r", "Rook");
@@ -19,12 +19,54 @@ public class PieceMap {
 	
 	public static final Map<String, PieceFactory> PIECE_FACOTRY_MAP = new HashMap<String, PieceFactory>();
 	static {
-		PIECE_FACOTRY_MAP.put("r", new RookFactory());
-		PIECE_FACOTRY_MAP.put("n", new KnightFactory());
-		PIECE_FACOTRY_MAP.put("q", new QueenFactory());
-		PIECE_FACOTRY_MAP.put("b", new BishopFactory());
-		PIECE_FACOTRY_MAP.put("p", new PawnFactory());
-		PIECE_FACOTRY_MAP.put("k", new KingFactory());
+		PIECE_FACOTRY_MAP.put("r", new PieceFactory() {
+
+			@Override
+			public Piece getInstance(Color color) {
+				return new Rook(color);
+			}
+			
+		});
+		PIECE_FACOTRY_MAP.put("n", new PieceFactory(){
+
+			@Override
+			public Piece getInstance(Color color) {
+				return new Knight(color);
+			}
+			
+		});
+		PIECE_FACOTRY_MAP.put("q", new PieceFactory() {
+
+			@Override
+			public Piece getInstance(Color color) {
+				return new Queen(color);
+			}
+			
+		});
+		PIECE_FACOTRY_MAP.put("b", new PieceFactory() {
+
+			@Override
+			public Piece getInstance(Color color) {
+				return new Bishop(color);
+			}
+			
+		});
+		PIECE_FACOTRY_MAP.put("p", new PieceFactory() {
+
+			@Override
+			public Piece getInstance(Color color) {
+				return new Pawn(color);
+			}
+			
+		});
+		PIECE_FACOTRY_MAP.put("k", new PieceFactory() {
+
+			@Override
+			public Piece getInstance(Color color) {
+				return new King(color);
+			}
+			
+		});
 	}
 	
 	public static String get(String letter) {
@@ -37,6 +79,10 @@ public class PieceMap {
 			System.out.println(letter);
 		}
 		return p.getInstance(color);
+	}
+	
+	private interface PieceFactory {
+		abstract public Piece getInstance(Color color);
 	}
 	
 }
