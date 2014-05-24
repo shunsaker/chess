@@ -23,12 +23,6 @@ public class Location {
 		LOC_STRING = (char)('a' + COL) + "" + (char)('0' + (Board.SIZE - ROW));
 	}
 	
-	public boolean isOnBoard() {
-		boolean rowOnBoard = 0 <= ROW && ROW < Board.SIZE;
-		boolean colOnBoard = 0 <= COL && COL < Board.SIZE;
-		return  rowOnBoard && colOnBoard;
-	}
-	
 	public int getRow() {
 		return ROW;
 	}
