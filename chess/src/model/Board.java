@@ -40,7 +40,7 @@ public class Board implements Iterable<Piece>{
 		for(int row = 0; row < SIZE; row++) {
 			for(int col = 0; col < SIZE; col++) {
 				Piece p = board[row][col];
-				if(p.getColor() == color) {
+				if(color == null || p.getColor() == color) {
 					locations.add(new Location(row, col));
 				}
 			}

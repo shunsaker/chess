@@ -7,7 +7,7 @@ import model.Pieces.Piece;
 import chess.Location;
 import chess.LocationTools;
 
-public class InteractiveConsoleDisplay implements Display{
+public class InteractiveConsoleDisplay extends ConsoleDisplay{
 	private final static String SEPERATOR = " |___|___|___|___|___|___|___|___|";
 	private final static String LABEL = "   a   b   c   d   e   f   g   h";
 

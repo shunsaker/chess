@@ -6,7 +6,7 @@ import chess.Location;
 import model.Board;
 import model.Pieces.Piece;
 
-public class ConsoleDisplay implements Display{
+public class ConsoleDisplay extends Display{
 
 	@Override
 	public void displayBoard(Board board, Location selectedPiece, List<Location> validMoves) {
@@ -24,5 +24,22 @@ public class ConsoleDisplay implements Display{
 			i++;
 		}
 		System.out.println("\n");
+	}
+	@Override
+	public void notifyCheck(String color) {
+		// TODO Auto-generated method stub
+		
+	}
+
+	@Override
+	public void notifyEndofGame(String Message) {
+		// TODO Auto-generated method stub
+		
+	}
+
+	@Override
+	public Piece getPawnPromotion() {
+		// TODO Auto-generated method stub
+		return null;
 	}
 }

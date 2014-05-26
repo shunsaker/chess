@@ -6,12 +6,17 @@ import inputOutput.Display;
 import inputOutput.GuiDisplay;
 import inputOutput.InteractiveConsoleDisplay;
 
+import java.awt.Component;
 import java.io.File;
 import java.util.ArrayDeque;
 import java.util.ArrayList;
 import java.util.Deque;
 import java.util.List;
+import java.util.Observable;
+import java.util.Observer;
 import java.util.Scanner;
+
+import javax.swing.JFrame;
 
 import model.Board;
 import model.Color;
@@ -23,8 +28,8 @@ import commands.Command;
 import commands.MoveCMD;
 import commands.Place;
 
-public class GameController {
-	private static final boolean GUI_DISPLAY = false;
+public class GameController implements Observer{
+	private static final boolean GUI_DISPLAY = true;
 	private Display display = GUI_DISPLAY ? new GuiDisplay() : new InteractiveConsoleDisplay();
 	private Board board = new Board();
 	private Deque<Command> moves = new ArrayDeque<Command>();
@@ -40,10 +45,28 @@ public class GameController {
 			}
 		}
 		reader.close();
+		
+		if(GUI_DISPLAY) {
+			setupGui();
+		};
+		
 	}
 	
 	public GameController() {
-		
+		if(GUI_DISPLAY) {
+			setupGui();
+		}
+	}
+	
+	private void setupGui() {
+		display.addObserver(this);
+		display.displayBoard(board, null, new ArrayList<Location>());
+		JFrame frame = new JFrame("Chess");
+		frame.setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
+		frame.getContentPane().add(((GuiDisplay) display).getBoardPanel());
+		frame.pack();
+		frame.setVisible(true);
+		frame.getContentPane().repaint();
 	}
 	
 	private void setupBoard() {
@@ -79,14 +102,13 @@ public class GameController {
 		}
 	}
 	
-	public void driver() {
+	public synchronized void driver() {
 		doPlaceMoves();
 		
 		boolean running = true;
 		Command command = null;
 		do {
 			command = moves.poll();
-			
 			updateAllPieceMoves();
 			List<Location> piecesWithMoves = BoardTools.getPiecesWithMoves(currentTurn, board);
 			running = piecesWithMoves.size() > 0; //playerCanMove(currentTurn);
@@ -97,13 +119,22 @@ public class GameController {
 					System.out.println("Check!");
 				}
 				if(command == null) {
-					command = promptForMove(piecesWithMoves);
+					if(GUI_DISPLAY) {
+						try {
+							wait();
+						} catch (InterruptedException e) {
+							e.printStackTrace();
+						}
+					}
+					else {
+						command = promptForMove(piecesWithMoves);
+					}
 				}
 				executeCommand(command);
 			}
 			clearAllPiecesMoves();
 		}
-		while(command != null && running);
+		while(running);
 		
 		if(!running) {
 			display.displayBoard(board, null, new ArrayList<Location>());
@@ -211,10 +242,22 @@ public class GameController {
 	}
 	
 	private void clearAllPiecesMoves() {
-		List<Location> pieceLocs = board.getLocations(currentTurn);
+		List<Location> pieceLocs = board.getLocations(null);
 		for(Location loc : pieceLocs) {
 			Piece p = board.pieceAt(loc);
 			p.setValidMoves(new ArrayList<Location>());
 		}
+	}
+
+	@Override
+	public void update(Observable o, Object arg) {
+		if(o instanceof GuiDisplay && arg instanceof MoveCMD) {
+			addCommand((Command)arg);
+		}
+	}
+	
+	public synchronized void addCommand(Command cmd) {
+		notifyAll();
+		moves.add(cmd);
 	}
 }

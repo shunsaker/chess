@@ -3,6 +3,8 @@ package model.Pieces;
 import java.util.ArrayList;
 import java.util.List;
 
+import javax.swing.ImageIcon;
+
 import model.Color;
 import chess.Location;
 import chess.MoveRules;
@@ -12,17 +14,23 @@ public abstract class Piece {
 	private final Color COLOR;
 	private final String NAME;
 	private final MoveType RULE;
+	private final ImageIcon IMAGE;
 	private List<Location> validMoves = new ArrayList<Location>();
 	protected boolean hasMoved = false;
 	
-	protected Piece(Color color, String name, MoveType rule) {
+	protected Piece(Color color, String name, MoveType rule, ImageIcon image) {
 		COLOR = color;
 		NAME = name;
 		RULE = rule;
+		IMAGE = image;
 	}
 	
 	public Color getColor() {
 		return COLOR;
+	}
+	
+	public ImageIcon getImage() {
+		return IMAGE;
 	}
 	
 	public MoveRules getMoveRule() {
