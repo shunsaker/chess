@@ -1,12 +1,5 @@
 package chess;
 
-import inputOutput.BufferedFileReader;
-import inputOutput.ConsoleInput;
-import inputOutput.Display;
-import inputOutput.GuiDisplay;
-import inputOutput.InteractiveConsoleDisplay;
-
-import java.awt.Component;
 import java.io.File;
 import java.util.ArrayDeque;
 import java.util.ArrayList;
@@ -14,48 +7,51 @@ import java.util.Deque;
 import java.util.List;
 import java.util.Observable;
 import java.util.Observer;
-import java.util.Scanner;
+import java.util.concurrent.TimeUnit;
 
 import javax.swing.JFrame;
 
-import model.Board;
-import model.Color;
-import model.Pieces.King;
-import model.Pieces.Pawn;
-import model.Pieces.Piece;
-import model.Pieces.Rook;
-import commands.Command;
-import commands.MoveCMD;
-import commands.Place;
+import inputOutput.*;
+import model.*;
+import model.Pieces.*;
+import commands.*;
 
 public class GameController implements Observer{
-	private static final boolean GUI_DISPLAY = true;
+	private static final boolean GUI_DISPLAY = false;
+	private static final int TURN_LENGTH = 250;
 	private Display display = GUI_DISPLAY ? new GuiDisplay() : new InteractiveConsoleDisplay();
 	private Board board = new Board();
 	private Deque<Command> moves = new ArrayDeque<Command>();
 	private Color currentTurn = Color.white;
-	private static final Scanner SCAN = new Scanner(System.in);
+	private boolean sleep;
+	
 	
 	public GameController(File commandFile) {
-		BufferedFileReader reader = new BufferedFileReader(commandFile);
-		while(reader.hasNext()) {
-			Command command = InputParser.parseLine(reader.next());
-			if(command != null) {
-				moves.add(command);
+		try{
+			BufferedFileReader reader = new BufferedFileReader(commandFile);
+			while(reader.hasNext()) {
+				Command command = InputParser.parseLine(reader.next());
+				if(command != null) {
+					moves.add(command);
+				}
 			}
+			reader.close();
 		}
-		reader.close();
+		catch(RuntimeException e) {
+			System.err.println("File not found");
+		}
 		
 		if(GUI_DISPLAY) {
 			setupGui();
 		};
-		
+		sleep = true;
 	}
 	
 	public GameController() {
 		if(GUI_DISPLAY) {
 			setupGui();
 		}
+		sleep = false;
 	}
 	
 	private void setupGui() {
@@ -74,9 +70,9 @@ public class GameController implements Observer{
 							   "pda7", "pdb7", "pdc7", "pdd7", "pde7", "pdf7", "pdg7", "pdh7",
 							   "pla2", "plb2", "plc2", "pld2", "ple2", "plf2", "plg2", "plh2",
 							   "rla1", "nlb1", "blc1", "qld1", "kle1", "blf1", "nlg1", "rlh1" };
-		for(String place : placements) {
-			Command command = InputParser.parseLine(place);
-			executeCommand(command);
+		for(String cmd : placements) {
+			Place place =  (Place) InputParser.parseLine(cmd);
+			board.place(place.getPiece(), place.getLocation());
 		}	
 	}
 	
@@ -88,7 +84,6 @@ public class GameController implements Observer{
 			if(command instanceof Place) {
 				Place place = (Place) command;
 				board.place(place.getPiece(), place.getLocation());
-				System.out.println(command);
 				placed = true;
 			}
 		}
@@ -109,30 +104,13 @@ public class GameController implements Observer{
 		Command command = null;
 		do {
 			command = moves.poll();
-			updateAllPieceMoves();
+			BoardTools.updateAllPieceMoves(currentTurn, board);
 			List<Location> piecesWithMoves = BoardTools.getPiecesWithMoves(currentTurn, board);
-			running = piecesWithMoves.size() > 0; //playerCanMove(currentTurn);
+			running = piecesWithMoves.size() > 0;
 			if(running) {
-				
-				display.displayBoard(board, null, piecesWithMoves);
-				if(RuleChecks.isInCheck(currentTurn, board)) {
-					System.out.println("Check!");
-				}
-				if(command == null) {
-					if(GUI_DISPLAY) {
-						try {
-							wait();
-						} catch (InterruptedException e) {
-							e.printStackTrace();
-						}
-					}
-					else {
-						command = promptForMove(piecesWithMoves);
-					}
-				}
-				executeCommand(command);
+				takeTurn(piecesWithMoves, command);
 			}
-			clearAllPiecesMoves();
+			BoardTools.clearAllPiecesMoves(board);
 		}
 		while(running);
 		
@@ -142,6 +120,43 @@ public class GameController implements Observer{
 		}
 	}	
 	
+	private void takeTurn(List<Location> piecesWithMoves, Command command) {
+		display.displayBoard(board, null, piecesWithMoves);
+		if(RuleChecks.isInCheck(currentTurn, board)) {
+			display.notifyCheck();
+		}
+		if(command == null) {
+			command = getCommand(piecesWithMoves);
+			sleep = false;
+		}
+		else {
+			if(sleep) {
+				try {
+					TimeUnit.MILLISECONDS.sleep(TURN_LENGTH);
+				} catch (InterruptedException e) {
+					// TODO Auto-generated catch block
+					e.printStackTrace();
+				}
+			}
+		}
+		executeCommand(command);
+	}
+
+	private Command getCommand(List<Location> piecesWithMoves) {
+		Command command = null;
+		if(GUI_DISPLAY) {
+			try {
+				wait();
+			} catch (InterruptedException e) {
+				e.printStackTrace();
+			}
+		}
+		else {
+			command = promptForMove(piecesWithMoves);
+		}
+		return command;
+	}
+
 	private MoveCMD promptForMove(List<Location> piecesWithMoves) {
 		Location from = ConsoleInput.getLocation(piecesWithMoves, "Select a piece", "Invalid piece!");
 		List<Location> validMoves = board.pieceAt(from).getValidMoves();
@@ -151,113 +166,65 @@ public class GameController implements Observer{
 	}
 
 	public void endGame() {
+		String message;
 		if(RuleChecks.isInCheck(currentTurn, board)) {
-			System.out.println("Checkmate! " + (currentTurn == Color.black ? Color.white : Color.black) +  " wins!");
+			message = "Checkmate! " + (currentTurn == Color.black ? Color.white : Color.black) +  " wins!";
 		}
 		else {
-			System.out.println("Stalemate");
+			message = "Stalemate";
 		}
+		display.notifyEndofGame(message);
+	}
+
+	public void place(Place place) {
+		
 	}
 
 	public void executeCommand(Command command) {
-		if(command != null) System.out.println(command);
+		if(command != null && !GUI_DISPLAY) System.out.println(command);
 		if(command instanceof Place) {
 			Place place = (Place) command;
 			board.place(place.getPiece(), place.getLocation());
 		}
 		else if(command instanceof MoveCMD) {
 			MoveCMD move = (MoveCMD) command;
-			if(move.getFrom().toString().equalsIgnoreCase("e1") && move.getTo().toString().equalsIgnoreCase("c1")) {
-				System.out.println("debug");
-			}
 			Piece p = board.pieceAt(move.getFrom());
 			if(RuleChecks.isValidMove(move, currentTurn, board) && 
 					p.getValidMoves().contains(move.getTo())) {
-				executeSpecialMove(p, move);
 				board.capture(move.getFrom(), move.getTo());
+				executeSpecialMove(p, move);
 				board.pieceAt(move.getTo()).moved();
 				currentTurn = (currentTurn == Color.white) ? Color.black : Color.white;
 			}
 			else {
-				System.err.println("Invalid Move!");
+				if(!GUI_DISPLAY) {
+					System.err.println("Invalid Move!");
+				}
 			}
 		}
 	}
 	
 	private void executeSpecialMove(Piece p, MoveCMD m) {
 		if(p instanceof King) { //castling
-			int rowDiff = m.getTo().getRow() - m.getFrom().getRow();
-			int colDiff = m.getTo().getCol() - m.getFrom().getCol();
-			if(rowDiff == 0 && Math.abs(colDiff) == 2) {
-				int shortDist = 3;
-				int longDist = 4;
-				RelativeLocation offset = new RelativeLocation(rowDiff, 
-						colDiff/Math.abs(colDiff));
-				Location shortCastle = new Location(m.getFrom(), 
-						new RelativeLocation(offset.getRow(), offset.getCol() * shortDist));
-				Location longCastle = new Location(m.getFrom(), 
-						new RelativeLocation(offset.getRow(), offset.getCol() * longDist));
-				Location rookLocation = board.pieceAt(shortCastle) instanceof Rook ? shortCastle : longCastle;
-				board.move(rookLocation, new Location(m.getFrom(), offset));
+			BoardTools.castling(m, board);
+		}
+		if(p instanceof Pawn) { // pawn promotion
+			Location moveTo = m.getTo();
+			if((moveTo.getRow() == 0 && p.getColor() == Color.white) ||
+					moveTo.getRow() == Board.SIZE - 1 && p.getColor() == Color.black) {
+				Piece promotion= display.getPawnPromotion(p.getColor());
+				board.place(promotion, moveTo);
 			}
 		}
-		
 	}
 	
-//	private boolean playerCanMove(Color color) {
-//		boolean canMove = false;
-//		List<Piece> pieces = board.getPieces(color);
-//		for(int i = 0; i < pieces.size() && !canMove; i++) {
-//			if(pieces.get(i).getValidMoves().size() > 0) {
-//				canMove = true;
-//			}
-//		}
-//		return canMove;
-//	}
-
-	private void updateAllPieceMoves() {
-		List<Location> pieceLocs = board.getLocations(currentTurn);
-		for(Location loc : pieceLocs) {
-			Piece p = board.pieceAt(loc);
-			updatePieceMoves(p, loc);
-		}
-	}	
-	
-	private void updatePieceMoves(Piece p, Location pieceLoc) {
-		MoveRules rule = p.getMoveRule();
-		List<Location> possibleMoves = LocationTools.getLocationsFromRule(rule, pieceLoc);
-		
-		if(rule.requiresClearPath()) {
-			possibleMoves = BoardTools.removeBlockedMoves(pieceLoc, possibleMoves, board);
-		}
-		
-		possibleMoves.addAll(BoardTools.validateSpecialMoves(p, pieceLoc, board));
-		
-		if(p instanceof Pawn) {
-			possibleMoves = BoardTools.getValidPawnMoves((Pawn) p, pieceLoc, board);
-		}
-		possibleMoves = BoardTools.removeSameColorConflics(p, possibleMoves, board);
-		possibleMoves = BoardTools.removeCheckMoves(pieceLoc, p.getColor(), possibleMoves, board);
-		p.setValidMoves(possibleMoves);
-	}
-	
-	private void clearAllPiecesMoves() {
-		List<Location> pieceLocs = board.getLocations(null);
-		for(Location loc : pieceLocs) {
-			Piece p = board.pieceAt(loc);
-			p.setValidMoves(new ArrayList<Location>());
-		}
-	}
-
 	@Override
-	public void update(Observable o, Object arg) {
+	public synchronized void update(Observable o, Object arg) {
 		if(o instanceof GuiDisplay && arg instanceof MoveCMD) {
-			addCommand((Command)arg);
+			sleep = false;
+			notifyAll();
+			moves.add((Command)arg);
 		}
 	}
 	
-	public synchronized void addCommand(Command cmd) {
-		notifyAll();
-		moves.add(cmd);
-	}
 }

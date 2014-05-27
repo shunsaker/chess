@@ -9,16 +9,15 @@ import java.awt.event.MouseListener;
 import java.awt.event.MouseMotionListener;
 import java.util.ArrayList;
 import java.util.List;
-import java.util.Observable;
 
 import javax.swing.ImageIcon;
+import javax.swing.JOptionPane;
 import javax.swing.JPanel;
 
 import commands.MoveCMD;
 import model.Board;
 import model.Pieces.Piece;
 import chess.Location;
-
 
 @SuppressWarnings("serial")
 public class GuiDisplay extends Display{
@@ -30,22 +29,20 @@ public class GuiDisplay extends Display{
 	}
 
 	@Override
-	public void notifyCheck(String color) {
-		// TODO Auto-generated method stub
-		
+	public void notifyCheck() {
+		JOptionPane.showMessageDialog(null, "Check!");
 	}
 
 	@Override
-	public void notifyEndofGame(String Message) {
-		// TODO Auto-generated method stub
-		
+	public void notifyEndofGame(String message) {
+		JOptionPane.showMessageDialog(null, message);
 	}
 
 	@Override
-	public Piece getPawnPromotion() {
-		// TODO Auto-generated method stub
+	public Piece getPawnPromotion(model.Color color) {
 		return null;
 	}
+
 	public BoardPanel getBoardPanel() {
 		return boardPanel;
 	}
@@ -140,8 +137,8 @@ public class GuiDisplay extends Display{
 			private void paint(Graphics canvas, ImageIcon image) {
 				int width = image.getIconWidth();
 				int height = image.getIconHeight();
-				int x = (PIXELS - width) / 2;
-				int y = (PIXELS - height) / 2;
+				int x = (getSize().width - width) / 2;
+				int y = (getSize().height - height) / 2;
 				image.paintIcon(this, canvas, x, y);
 			}
 			
@@ -181,7 +178,6 @@ public class GuiDisplay extends Display{
 					if(validLocations.contains(loc)) {
 						MoveCMD move = new MoveCMD(selectedLoc, loc);
 						notifyWithMove(move);
-						// create a new MoveCMD and get it to the gameController
 						selectedPiece = null;
 						selectedPanel.setDisplay(true);
 						mouseExited(event);
@@ -235,16 +231,18 @@ public class GuiDisplay extends Display{
 			
 			@Override
 			public void mouseDragged(MouseEvent event) {
-				// TODO Auto-generated method stub
 				
 			}
 
 			@Override
 			public void mouseMoved(MouseEvent event) {
-				mouseX = event.getXOnScreen() - 8; // to account for the side margin
-				mouseY = event.getYOnScreen() - 30; // to account for the top header
-				if(selectedPiece != null) {
-					repaint();
+				if(event.getSource() instanceof BoardSquare) {
+					BoardSquare source = (BoardSquare) event.getSource();
+					mouseX = event.getX() + source.getLoc().getCol() * source.getWidth();
+					mouseY = event.getY() + source.getLoc().getRow() * source.getHeight();
+					if(selectedPiece != null) {
+						repaint();
+					}
 				}
 			}
 			

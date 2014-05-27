@@ -4,12 +4,8 @@ import java.util.ArrayList;
 import java.util.List;
 
 import commands.MoveCMD;
-import model.Board;
-import model.Color;
-import model.Pieces.King;
-import model.Pieces.Pawn;
-import model.Pieces.Piece;
-import model.Pieces.Rook;
+import model.*;
+import model.Pieces.*;
 
 public class BoardTools {
 	
@@ -112,21 +108,21 @@ public class BoardTools {
 		return pawnMoves;
 	}
 
-	public static List<Location> removeCheckMoves(Location pieceLoc, Color color, List<Location> possibleMoves, Board context) {
+	public static List<Location> removeCheckMoves(Location pieceLoc, Color turn, List<Location> possibleMoves, Board context) {
 		List<Location> validMoves = new ArrayList<Location>();
 		for(Location toLocation : possibleMoves) {
 			Board copy = context.getCopy();
 			copy.capture(pieceLoc, toLocation);
-			if(!RuleChecks.isInCheck(color, copy)) {
+			if(!RuleChecks.isInCheck(turn, copy)) {
 				validMoves.add(toLocation);
 			}
 		}
 		return validMoves;
 	}
 
-	public static List<Location> getPiecesWithMoves(Color color, Board context) {
+	public static List<Location> getPiecesWithMoves(Color turn, Board context) {
 		List<Location> piecesWithMoves = new ArrayList<Location>();
-		List<Location> pieces = context.getLocations(color);
+		List<Location> pieces = context.getLocations(turn);
 		for(int i = 0; i < pieces.size(); i++) {
 			Location loc = pieces.get(i);
 			Piece p = context.pieceAt(loc);
@@ -135,5 +131,56 @@ public class BoardTools {
 			}
 		}
 		return piecesWithMoves;
+	}
+
+	public static void clearAllPiecesMoves(Board context) {
+		List<Location> pieceLocs = context.getLocations(null);
+		for(Location loc : pieceLocs) {
+			Piece p = context.pieceAt(loc);
+			p.setValidMoves(new ArrayList<Location>());
+		}
+	}
+
+	public static void updateAllPieceMoves(Color turn, Board context) {
+		List<Location> pieceLocs = context.getLocations(turn);
+		for(Location loc : pieceLocs) {
+			Piece p = context.pieceAt(loc);
+			updatePieceMoves(p, loc, context);
+		}
+	}	
+	
+	private static void updatePieceMoves(Piece p, Location pieceLoc, Board context) {
+		MoveRules rule = p.getMoveRule();
+		List<Location> possibleMoves = LocationTools.getLocationsFromRule(rule, pieceLoc);
+		
+		if(rule.requiresClearPath()) {
+			possibleMoves = BoardTools.removeBlockedMoves(pieceLoc, possibleMoves, context);
+		}
+		
+		possibleMoves.addAll(BoardTools.validateSpecialMoves(p, pieceLoc, context));
+		
+		if(p instanceof Pawn) {
+			possibleMoves = BoardTools.getValidPawnMoves((Pawn) p, pieceLoc, context);
+		}
+		possibleMoves = BoardTools.removeSameColorConflics(p, possibleMoves, context);
+		possibleMoves = BoardTools.removeCheckMoves(pieceLoc, p.getColor(), possibleMoves, context);
+		p.setValidMoves(possibleMoves);
+	}
+	
+	public static void castling(MoveCMD m, Board context) {
+		int rowDiff = m.getTo().getRow() - m.getFrom().getRow();
+		int colDiff = m.getTo().getCol() - m.getFrom().getCol();
+		if(rowDiff == 0 && Math.abs(colDiff) == 2) {
+			int shortDist = 3;
+			int longDist = 4;
+			RelativeLocation offset = new RelativeLocation(rowDiff, 
+					colDiff/Math.abs(colDiff));
+			Location shortCastle = new Location(m.getFrom(), 
+					new RelativeLocation(offset.getRow(), offset.getCol() * shortDist));
+			Location longCastle = new Location(m.getFrom(), 
+					new RelativeLocation(offset.getRow(), offset.getCol() * longDist));
+			Location rookLocation = context.pieceAt(shortCastle) instanceof Rook ? shortCastle : longCastle;
+			context.move(rookLocation, new Location(m.getFrom(), offset));
+		}
 	}
 }

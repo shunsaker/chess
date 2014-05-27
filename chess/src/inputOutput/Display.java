@@ -9,7 +9,7 @@ import model.Pieces.Piece;
 
 public abstract class Display extends Observable{
 	public abstract void displayBoard(Board board, Location selectedPiece, List<Location> validMoves);
-	public abstract void notifyCheck(String color);
-	public abstract void notifyEndofGame(String Message);
-	public abstract Piece getPawnPromotion();
+	public abstract void notifyCheck();
+	public abstract void notifyEndofGame(String message);
+	public abstract Piece getPawnPromotion(model.Color color);
 }

@@ -26,20 +26,19 @@ public class ConsoleDisplay extends Display{
 		System.out.println("\n");
 	}
 	@Override
-	public void notifyCheck(String color) {
-		// TODO Auto-generated method stub
+	public void notifyCheck() {
+		System.out.println("Check!");
 		
 	}
 
 	@Override
-	public void notifyEndofGame(String Message) {
-		// TODO Auto-generated method stub
+	public void notifyEndofGame(String message) {
+		System.out.println(message);
 		
 	}
 
 	@Override
-	public Piece getPawnPromotion() {
-		// TODO Auto-generated method stub
-		return null;
+	public Piece getPawnPromotion(model.Color color) {
+		return ConsoleInput.getPawnPromotion(color);
 	}
 }

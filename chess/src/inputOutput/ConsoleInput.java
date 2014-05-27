@@ -3,6 +3,9 @@ package inputOutput;
 import java.util.List;
 import java.util.Scanner;
 
+import model.Color;
+import model.PieceMap;
+import model.Pieces.Piece;
 import chess.Location;
 import chess.LocationTools;
 
@@ -19,9 +22,9 @@ public class ConsoleInput {
 				}
 			}
 			System.out.println(message);
-			input = SCAN.next();
+			input = SCAN.nextLine();
 		}
-		while(input.length() != 2 && LocationTools.isLocationOnBoard(new Location(input)));
+		while(!(input.length() == 2 && LocationTools.isLocationOnBoard(new Location(input))));
 		return new Location(input);
 	}
 	
@@ -37,5 +40,20 @@ public class ConsoleInput {
 		return loc;
 	}
 	
+	public static Piece getPawnPromotion(Color color) {
+		Piece piece = null;
+		do {
+			System.out.println("Pawn Promotion! What piece do you want? [Q, B, N, R]");
+			String input = SCAN.nextLine().toLowerCase();
+			if(input.equalsIgnoreCase("q") ||
+					input.equalsIgnoreCase("b") ||
+					input.equalsIgnoreCase("n") ||
+					input.equalsIgnoreCase("r")) {
+				piece = PieceMap.getInstance(input, color);
+			}
+		}
+		while(piece == null);
+		return piece;
+	}
 	
 }
