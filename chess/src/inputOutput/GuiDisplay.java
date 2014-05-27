@@ -16,12 +16,14 @@ import javax.swing.JPanel;
 
 import commands.MoveCMD;
 import model.Board;
+import model.PieceMap;
 import model.Pieces.Piece;
 import chess.Location;
 
 @SuppressWarnings("serial")
 public class GuiDisplay extends Display{
-	BoardPanel boardPanel = new BoardPanel();
+	private static final String[] promotionOptions = {"Queen", "Knight", "Bishop", "Rook"};
+	private BoardPanel boardPanel = new BoardPanel();
 
 	@Override
 	public void displayBoard(Board board, Location selectedLoc, List<Location> locsWithMoves) {
@@ -40,7 +42,13 @@ public class GuiDisplay extends Display{
 
 	@Override
 	public Piece getPawnPromotion(model.Color color) {
-		return null;
+		int n = JOptionPane.showOptionDialog(null, "Select promotion",
+				"Pawn Promotion", JOptionPane.DEFAULT_OPTION,
+				JOptionPane.PLAIN_MESSAGE, null, promotionOptions, 
+				promotionOptions[0]);
+		String pieceInitial = n == 1 ? "n" : promotionOptions[n].toLowerCase().substring(0, 1);
+		
+		return PieceMap.getInstance(pieceInitial, color);
 	}
 
 	public BoardPanel getBoardPanel() {
@@ -248,7 +256,5 @@ public class GuiDisplay extends Display{
 			
 		}
 	}
-
-
 	
 }

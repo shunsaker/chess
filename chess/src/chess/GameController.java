@@ -17,7 +17,7 @@ import model.Pieces.*;
 import commands.*;
 
 public class GameController implements Observer{
-	private static final boolean GUI_DISPLAY = false;
+	private static final boolean GUI_DISPLAY = true;
 	private static final int TURN_LENGTH = 250;
 	private Display display = GUI_DISPLAY ? new GuiDisplay() : new InteractiveConsoleDisplay();
 	private Board board = new Board();
@@ -69,7 +69,7 @@ public class GameController implements Observer{
 		String[] placements = {"rda8", "ndb8", "bdc8", "qdd8", "kde8", "bdf8", "ndg8", "rdh8", 
 							   "pda7", "pdb7", "pdc7", "pdd7", "pde7", "pdf7", "pdg7", "pdh7",
 							   "pla2", "plb2", "plc2", "pld2", "ple2", "plf2", "plg2", "plh2",
-							   "rla1", "nlb1", "blc1", "qld1", "kle1", "blf1", "nlg1", "rlh1" };
+							   "rla1", "nlb1", "blc1", "qld1", "kle1", "blf1", "nlg1", "rlh1"};
 		for(String cmd : placements) {
 			Place place =  (Place) InputParser.parseLine(cmd);
 			board.place(place.getPiece(), place.getLocation());
@@ -134,7 +134,6 @@ public class GameController implements Observer{
 				try {
 					TimeUnit.MILLISECONDS.sleep(TURN_LENGTH);
 				} catch (InterruptedException e) {
-					// TODO Auto-generated catch block
 					e.printStackTrace();
 				}
 			}
@@ -176,10 +175,6 @@ public class GameController implements Observer{
 		display.notifyEndofGame(message);
 	}
 
-	public void place(Place place) {
-		
-	}
-
 	public void executeCommand(Command command) {
 		if(command != null && !GUI_DISPLAY) System.out.println(command);
 		if(command instanceof Place) {
@@ -210,8 +205,7 @@ public class GameController implements Observer{
 		}
 		if(p instanceof Pawn) { // pawn promotion
 			Location moveTo = m.getTo();
-			if((moveTo.getRow() == 0 && p.getColor() == Color.white) ||
-					moveTo.getRow() == Board.SIZE - 1 && p.getColor() == Color.black) {
+			if(moveTo.getRow() == 0  || moveTo.getRow() == Board.SIZE - 1) {
 				Piece promotion= display.getPawnPromotion(p.getColor());
 				board.place(promotion, moveTo);
 			}
@@ -220,11 +214,9 @@ public class GameController implements Observer{
 	
 	@Override
 	public synchronized void update(Observable o, Object arg) {
-		if(o instanceof GuiDisplay && arg instanceof MoveCMD) {
-			sleep = false;
-			notifyAll();
-			moves.add((Command)arg);
-		}
+		sleep = false;
+		notifyAll();
+		moves.add((Command)arg);
 	}
 	
 }
